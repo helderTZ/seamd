@@ -42,17 +42,13 @@ pub fn get_pixel_energy(img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>, x: u32, y: u32)
     delta_x + delta_y
 }
 
-//FIXME (dont know whats wrong)
 pub fn get_image_energy(img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> Vec<u32> {
     let mut energy_data: Vec<u32> = Vec::with_capacity(img_buf.len());
     let (w, h) = img_buf.dimensions();
 
-    println!("img_buf len: {}", img_buf.len());
-    println!("img_buf dims: {:?}", img_buf.dimensions());
     for j in 0..h {
         for i in 0..w {
-            println!("i: {}, j: {}", i, j);
-            energy_data[(j * h + i) as usize] = get_pixel_energy(&img_buf, i, j);
+            energy_data.push(get_pixel_energy(img_buf, i, j));
         }
     }
 
@@ -64,7 +60,7 @@ fn min<T: Ord>(a: T, b: T, c: T) -> T {
 }
 
 fn get_transition(from: u32, to: u32) -> u32 {
-    (from as i32 - to as i32).abs() as u32
+    (from as i32 - to as i32).unsigned_abs()
 }
 
 fn get_seam_direction(
@@ -99,26 +95,25 @@ fn get_seam_direction(
         );
         min_index = if min_energy == get_transition(start, middle) {
             x
+        } else if min_energy == get_transition(start, left) {
+            x - 1
         } else {
-            if min_energy == get_transition(start, left) {
-                x - 1
-            } else {
-                x + 1
-            }
+            x + 1
         };
     }
     (min_energy, min_index)
 }
 
 pub fn get_seam_starting_at(
-    energy_data: &Vec<u32>,
+    energy_data: &[u32],
     w: usize,
     h: usize,
     x: usize,
 ) -> Vec<SeamHistory> {
     let mut seam: Vec<SeamHistory> = Vec::with_capacity(h);
-    seam[0] = SeamHistory::new(energy_data[x], usize::MAX);
+    seam.push(SeamHistory::new(energy_data[x], usize::MAX));
 
+    //FIXME: x + 1 will be out of bounds
     for j in 1..(h - 1) as usize {
         let (min_energy, min_index) = get_seam_direction(
             energy_data[j * w + x],
@@ -128,7 +123,7 @@ pub fn get_seam_starting_at(
             x,
             w,
         );
-        seam[j] = SeamHistory::new(min_energy, min_index);
+        seam.push(SeamHistory::new(min_energy, min_index));
     }
 
     seam
@@ -136,15 +131,16 @@ pub fn get_seam_starting_at(
 
 pub fn get_seams(img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> Vec<Vec<SeamHistory>> {
     let (w, h) = img_buf.dimensions();
-    let energy_data = get_image_energy(&img_buf);
+    let energy_data = get_image_energy(img_buf);
 
     let mut seams: Vec<Vec<SeamHistory>> = Vec::with_capacity(w as usize);
-    for i in 0..w as usize {
-        seams[i] = Vec::with_capacity(h as usize);
-    }
+
+    // for i in 0..w as usize {
+    //     seams.push(Vec::with_capacity(h as usize));
+    // }
 
     for i in 0..w as usize {
-        seams[i] = get_seam_starting_at(&energy_data, w as usize, h as usize, i);
+        seams.push(get_seam_starting_at(&energy_data, w as usize, h as usize, i));
     }
 
     seams

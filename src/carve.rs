@@ -3,7 +3,7 @@ use image::{ImageBuffer, Rgb};
 
 pub fn carve_seam(
     img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>,
-    seam: &Vec<SeamHistory>,
+    seam: &[SeamHistory],
 ) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
     let new_w = img_buf.width() - 1;
     let new_h = img_buf.height();

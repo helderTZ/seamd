@@ -1,4 +1,3 @@
-use image;
 use std::env;
 
 mod carve;
@@ -23,9 +22,9 @@ fn main() {
     let img_buf = orig_img.as_rgb8().unwrap();
 
     // for s in 0..nr_seams {
-    let seams = seam::get_seams(&img_buf);
+    let seams = seam::get_seams(img_buf);
     let min_seam = seam::get_min_seam(&seams);
-    let carved_img = carve::carve_seam(img_buf, &min_seam);
+    let carved_img = carve::carve_seam(img_buf, min_seam);
     carved_img
         .save(output_file.as_str())
         .expect("could not save carved image");
