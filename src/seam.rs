@@ -64,38 +64,45 @@ fn get_transition(from: u32, to: u32) -> u32 {
 }
 
 fn get_seam_direction(
-    start: u32,
-    left: u32,
-    middle: u32,
-    right: u32,
+    energy_data: &[u32],
+    start: usize,
+    left: usize,
+    middle: usize,
+    right: usize,
     x: usize,
     w: usize,
 ) -> (u32, usize) {
     let min_energy;
     let min_index;
     if x == 0 {
-        min_energy = std::cmp::min(get_transition(start, middle), get_transition(start, right));
-        min_index = if min_energy == get_transition(start, middle) {
+        min_energy = std::cmp::min(
+            get_transition(energy_data[start], energy_data[middle]),
+            get_transition(energy_data[start], energy_data[right]),
+        );
+        min_index = if min_energy == get_transition(energy_data[start], energy_data[middle]) {
             x
         } else {
             x + 1
         };
     } else if x == w - 1 {
-        min_energy = std::cmp::min(get_transition(start, left), get_transition(start, middle));
-        min_index = if min_energy == get_transition(start, middle) {
+        min_energy = std::cmp::min(
+            get_transition(energy_data[start], energy_data[left]),
+            get_transition(energy_data[start], energy_data[middle]),
+        );
+        min_index = if min_energy == get_transition(energy_data[start], energy_data[middle]) {
             x
         } else {
             x - 1
         };
     } else {
         min_energy = min(
-            get_transition(start, left),
-            get_transition(start, middle),
-            get_transition(start, right),
+            get_transition(energy_data[start], energy_data[left]),
+            get_transition(energy_data[start], energy_data[middle]),
+            get_transition(energy_data[start], energy_data[right]),
         );
-        min_index = if min_energy == get_transition(start, middle) {
+        min_index = if min_energy == get_transition(energy_data[start], energy_data[middle]) {
             x
-        } else if min_energy == get_transition(start, left) {
+        } else if min_energy == get_transition(energy_data[start], energy_data[left]) {
             x - 1
         } else {
             x + 1
@@ -104,22 +111,17 @@ fn get_seam_direction(
     (min_energy, min_index)
 }
 
-pub fn get_seam_starting_at(
-    energy_data: &[u32],
-    w: usize,
-    h: usize,
-    x: usize,
-) -> Vec<SeamHistory> {
+pub fn get_seam_starting_at(energy_data: &[u32], w: usize, h: usize, x: usize) -> Vec<SeamHistory> {
     let mut seam: Vec<SeamHistory> = Vec::with_capacity(h);
     seam.push(SeamHistory::new(energy_data[x], usize::MAX));
 
-    //FIXME: x + 1 will be out of bounds
     for j in 1..(h - 1) as usize {
         let (min_energy, min_index) = get_seam_direction(
-            energy_data[j * w + x],
-            energy_data[(j + 1) * w + x - 1],
-            energy_data[(j + 1) * w + x],
-            energy_data[(j + 1) * w + x + 1],
+            energy_data,
+            j * w + x,
+            (j + 1) * w + x - 1,
+            (j + 1) * w + x,
+            (j + 1) * w + x + 1,
             x,
             w,
         );
@@ -140,7 +142,12 @@ pub fn get_seams(img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> Vec<Vec<SeamHistory
     // }
 
     for i in 0..w as usize {
-        seams.push(get_seam_starting_at(&energy_data, w as usize, h as usize, i));
+        seams.push(get_seam_starting_at(
+            &energy_data,
+            w as usize,
+            h as usize,
+            i,
+        ));
     }
 
     seams
