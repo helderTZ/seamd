@@ -1,9 +1,5 @@
 use std::env;
-use std::thread;
 use std::io::Write;
-
-use image::ImageBuffer;
-use::image::Rgb;
 
 mod carve;
 mod seam;
