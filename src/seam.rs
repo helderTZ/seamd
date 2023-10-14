@@ -1,4 +1,5 @@
 use image::{ImageBuffer, Rgb};
+use rayon::prelude::*;
 
 pub struct SeamHistory {
     pub energy: u32,
@@ -19,38 +20,24 @@ pub fn get_pixel_energy(img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>, x: u32, y: u32)
     let y0 = if y == 0 { y } else { y - 1 };
     let y1 = if y == h - 1 { y } else { y + 1 };
 
-    let delta_xr =
-        ((img_buf.get_pixel(x0, y).0[0] as i32) - (img_buf.get_pixel(x1, y).0[0] as i32)) as u32;
-    let delta_xg =
-        ((img_buf.get_pixel(x0, y).0[1] as i32) - (img_buf.get_pixel(x1, y).0[1] as i32)) as u32;
-    let delta_xb =
-        ((img_buf.get_pixel(x0, y).0[2] as i32) - (img_buf.get_pixel(x1, y).0[2] as i32)) as u32;
-    let delta_x = delta_xr.wrapping_mul(delta_xr)
-        + delta_xg.wrapping_mul(delta_xg)
-        + delta_xb.wrapping_mul(delta_xb);
+    let delta_xr = ((img_buf.get_pixel(x0, y).0[0] as i32) - (img_buf.get_pixel(x1, y).0[0] as i32)) as u32;
+    let delta_xg = ((img_buf.get_pixel(x0, y).0[1] as i32) - (img_buf.get_pixel(x1, y).0[1] as i32)) as u32;
+    let delta_xb = ((img_buf.get_pixel(x0, y).0[2] as i32) - (img_buf.get_pixel(x1, y).0[2] as i32)) as u32;
+    let delta_x = delta_xr.wrapping_mul(delta_xr) + delta_xg.wrapping_mul(delta_xg) + delta_xb.wrapping_mul(delta_xb);
 
-    let delta_yr =
-        ((img_buf.get_pixel(x, y0).0[0] as i32) - (img_buf.get_pixel(x, y1).0[0] as i32)) as u32;
-    let delta_yg =
-        ((img_buf.get_pixel(x, y0).0[1] as i32) - (img_buf.get_pixel(x, y1).0[1] as i32)) as u32;
-    let delta_yb =
-        ((img_buf.get_pixel(x, y0).0[2] as i32) - (img_buf.get_pixel(x, y1).0[2] as i32)) as u32;
-    let delta_y = delta_yr.wrapping_mul(delta_yr)
-        + delta_yg.wrapping_mul(delta_yg)
-        + delta_yb.wrapping_mul(delta_yb);
+    let delta_yr = ((img_buf.get_pixel(x, y0).0[0] as i32) - (img_buf.get_pixel(x, y1).0[0] as i32)) as u32;
+    let delta_yg = ((img_buf.get_pixel(x, y0).0[1] as i32) - (img_buf.get_pixel(x, y1).0[1] as i32)) as u32;
+    let delta_yb = ((img_buf.get_pixel(x, y0).0[2] as i32) - (img_buf.get_pixel(x, y1).0[2] as i32)) as u32;
+    let delta_y = delta_yr.wrapping_mul(delta_yr) + delta_yg.wrapping_mul(delta_yg) + delta_yb.wrapping_mul(delta_yb);
 
     delta_x + delta_y
 }
 
 pub fn get_image_energy(img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> Vec<u32> {
-    let mut energy_data: Vec<u32> = Vec::with_capacity(img_buf.len());
     let (w, h) = img_buf.dimensions();
-
-    for j in 0..h {
-        for i in 0..w {
-            energy_data.push(get_pixel_energy(img_buf, i, j));
-        }
-    }
+    let energy_data: Vec<u32> = (0..(w*h)).into_par_iter().map(|i| {
+        get_pixel_energy(img_buf, i/w, i%h)
+    }).collect();
 
     energy_data
 }
@@ -114,7 +101,6 @@ fn get_seam_direction(
 pub fn get_seam_starting_at(energy_data: &[u32], w: usize, h: usize, x: usize) -> Vec<SeamHistory> {
     let mut seam: Vec<SeamHistory> = Vec::with_capacity(h);
     seam.push(SeamHistory::new(energy_data[x], usize::MAX));
-
     for j in 1..(h - 1) as usize {
         let (min_energy, min_index) = get_seam_direction(
             energy_data,
@@ -128,6 +114,33 @@ pub fn get_seam_starting_at(energy_data: &[u32], w: usize, h: usize, x: usize) -
         seam.push(SeamHistory::new(min_energy, min_index));
     }
 
+    // let mut seam: Vec<SeamHistory> = Vec::with_capacity(h);
+    // seam.push(SeamHistory::new(energy_data[x], usize::MAX));
+    // let mut seam_rest: Vec<SeamHistory> = (1..h-1).into_par_iter().map(|j| {
+    //     let (min_energy, min_index) = get_seam_direction(energy_data, 
+    //         j*w + x,
+    //         (j + 1) * w + x - 1,
+    //         (j + 1) * w + x,
+    //         (j + 1) * w + x + 1,
+    //         x, w);
+    //     SeamHistory::new(min_energy, min_index)
+    // }).collect();
+    // seam.append(&mut seam_rest);
+
+    // let seam: Vec<SeamHistory> = (0..h-1).into_par_iter().map(|j| {
+    //     if j == 0 {
+    //         SeamHistory::new(energy_data[x], usize::MAX)
+    //     } else {
+    //         let (min_energy, min_index) = get_seam_direction(energy_data, 
+    //             j*w + x,
+    //             (j + 1) * w + x - 1,
+    //             (j + 1) * w + x,
+    //             (j + 1) * w + x + 1,
+    //             x, w);
+    //         SeamHistory::new(min_energy, min_index)
+    //     }
+    // }).collect();
+
     seam
 }
 
@@ -136,10 +149,6 @@ pub fn get_seams(img_buf: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> Vec<Vec<SeamHistory
     let energy_data = get_image_energy(img_buf);
 
     let mut seams: Vec<Vec<SeamHistory>> = Vec::with_capacity(w as usize);
-
-    // for i in 0..w as usize {
-    //     seams.push(Vec::with_capacity(h as usize));
-    // }
 
     for i in 0..w as usize {
         seams.push(get_seam_starting_at(
