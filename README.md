@@ -7,10 +7,8 @@ Seamd is a seam carving implementation in Rust, just for fun. Seam carving is an
 
 ## Examples
 
-> **NOTE**: seamd does not handle paths well yet, so to run the following examples, copy the images from the `examples` folder to the root of the project.
-
 ```console
-cargo run Broadway_tower.jpeg Broadway_tower_carved.jpeg 200 --highlight
+cargo run -i Broadway_tower.jpeg -o Broadway_tower_carved.jpeg -n 200 --seam_highlight
 ```
 
 <table>
