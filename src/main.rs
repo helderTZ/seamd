@@ -1,30 +1,38 @@
-use std::env;
 use std::io::Write;
+use clap::Parser;
 
 mod carve;
 mod seam;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Input file
+    #[arg(short, long)]
+    input_file: String,
+
+    /// Output file
+    #[arg(short,long)]
+    output_file: String,
+
+    /// Number of seams to carve out
+    #[arg(short, long)]
+    nr_seams: i32,
+
+    /// Flag to generate highlighted image with carved out seams
+    #[arg(short, long, action)]
+    seam_highlight: bool,
+}
+
 fn main() {
-    let input_file = env::args().nth(1).expect("Expected input file");
-    let output_file = env::args().nth(2).expect("Expected output file"); 
-    let nr_seams = match env::args().nth(3) {
-        Some(nr_seams) => nr_seams.parse::<i32>().unwrap(),
-        None => 1,
-    };
-    let highlight_carved_seams = match env::args().nth(4) {
-        Some(highlight) => if highlight == "--highlight" {
-            true
-        } else {
-            false
-        },
-        None => false,
-    };
+    let args = Args::parse();
 
-    println!("Original file: {}", input_file);
-    println!("Output file: {}", output_file);
-    println!("Number of seams to carve: {}", nr_seams);
+    println!("Original file: {}", args.input_file);
+    println!("Output file: {}", args.output_file);
+    println!("Number of seams to carve: {}", args.nr_seams);
+    println!("Highlight enabled: {}", args.seam_highlight);
 
-    let mut img_buf = image::io::Reader::open(input_file)
+    let mut img_buf = image::ImageReader::open(args.input_file)
         .unwrap()
         .decode()
         .unwrap()
@@ -33,8 +41,8 @@ fn main() {
 
     let mut highlighted_img = img_buf.clone();
 
-    for s in 0..nr_seams {
-        print!("\rCarving seam {}/{} ...", s+1, nr_seams);
+    for s in 0..args.nr_seams {
+        print!("\rCarving seam {}/{} ...", s+1, args.nr_seams);
         let _ = std::io::stdout().flush();
 
         let seams = seam::get_seams(&img_buf);
@@ -42,16 +50,16 @@ fn main() {
         let carved_img = carve::carve_seam(&img_buf, min_seam);
         img_buf = carved_img.clone();
 
-        if highlight_carved_seams {
+        if args.seam_highlight {
             highlighted_img = carve::highlight_seam(&highlighted_img, min_seam);
         }
 
-        if s == nr_seams-1 {
-            carved_img.save(output_file.as_str())
+        if s == args.nr_seams-1 {
+            carved_img.save(args.output_file.as_str())
             .expect("could not save carved image");
 
-            if highlight_carved_seams {
-                highlighted_img.save(format!("highlight_{}", output_file))
+            if args.seam_highlight {
+                highlighted_img.save(format!("highlight_{}", args.output_file))
                     .expect("could not save highlighted image");
             }
         }
